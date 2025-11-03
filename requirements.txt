@@ -6,3 +6,9 @@ requests
 python-dotenv
 regex
 pytest
+torch
+torchvision
+pillow
+python-multipart
+timm
+transformers

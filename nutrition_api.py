@@ -11,7 +11,8 @@ def get_nutrition (items: list[dict])->list[dict]:
     for item in items :
         item_string = build_item_string(item=item)
         data = query(item_string)
-        result.append(parse_nutrition_data(item_string,data))
+        if data and ("parsed" in data and len(data["parsed"]) > 0):
+            result.append(parse_nutrition_data(item_string,data))
     return result
 
 

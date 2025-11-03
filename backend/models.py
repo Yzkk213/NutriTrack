@@ -10,6 +10,6 @@ class MacroData(BaseModel):
 class Meal(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
     meal_name: Optional[str] = None
-    user_id: str
+    user_id:  str
     items: str  
     macros: Optional[MacroData] = None

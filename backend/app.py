@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+import os
+from fastapi import FastAPI, File, Query, UploadFile
 from backend.db import db, get_next_meal_number
 from backend.id import generate_meal_id
+from backend.ml.food_recognition import predict_food
 from backend.models import Meal, MacroData
 from nlp_parser import parse
 from nutrition_api import get_nutrition 
@@ -12,6 +14,56 @@ app = FastAPI(title="NutriTrack API")
 def root():
     return {"message": "Welcome to NutriTrack API!"}
 
+
+
+@app.post("/meals/image")
+async def add_meals(file: UploadFile = File(...), user_id: str = Query(...)):
+
+    
+    image_path = f"temp_{file.filename}"
+    with open(image_path, "wb") as f:
+        f.write(await file.read())
+
+
+    predicted_foods = predict_food(image_path)
+
+    
+    if os.path.exists(image_path):
+        os.remove(image_path)
+        
+    list_ingredients = [{"product": food, "quantity": 100, "unit": "g"} for food in predicted_foods]
+    list_macros = get_nutrition(list_ingredients)
+
+
+    sum_protein = 0
+    sum_cals = 0
+    sum_carbs = 0
+    sum_fats = 0
+    
+    for macros in list_macros:
+        sum_cals+= macros["calories"]
+        sum_protein += macros["protein"]
+        sum_carbs += macros["carbs"]
+        sum_fats += macros["fat"]
+        
+    macro_dict = {
+        "calories":  round(sum_cals,2),
+        "protein": round(sum_protein,2),
+        "carbs": round(sum_carbs,2),
+        "fat": round(sum_fats,2)
+    }
+    i = get_next_meal_number()
+    
+    meal = {
+        "id": generate_meal_id(),
+        "meal_name": f"meal{i}",
+        "items": predicted_foods,
+        "macros": macro_dict,
+        "user_id": user_id,
+
+        }
+    db["meals"].insert_one(meal)
+    return {"status": "success", "name":meal["meal_name"],"macros": meal["macros"]}
 
 
 @app.post("/meals")
@@ -86,6 +138,7 @@ def delete_meal(meal_name: str):
 @app.delete("/meals")
 def delete_all_meals():
     result = db["meals"].delete_many({})
+    meal_counter=1
     return {
         "status": "success",
         "deleted_count": result.deleted_count,
